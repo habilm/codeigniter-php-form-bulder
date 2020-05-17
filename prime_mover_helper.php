@@ -8,7 +8,7 @@ if(!function_exists("form_builder")){
  * $table => form_filter_hooks : array(<hook_name>: array( <field_name/column_name> ) ) 
  * eg:"before_submit"=>["category_id"], the function will be before_submit_category_id
  */
-    function form_builder($edit=[]){
+    function form_builder($edit=[],$custom_fields=""){
         if(empty($edit)){
             $edit = $_GET;
         }
@@ -127,6 +127,7 @@ if(!function_exists("form_builder")){
             
         }   ?>
             </div>
+            <?= $custom_fields ?>
             <div class="box-footer">
                 <input type="submit" class="btn btn-primary" value="Submit">
             </div>
@@ -173,25 +174,30 @@ if(!function_exists("to_html_attr")){
 }
 
 /**
- * standard form manager
+ * prime_mover form manager
  * 
  * values
  * $edit = the id of row from the table to edit
  * 
  * 
  */
-if(!function_exists("standard_new")){
-    function standard_new($edit = 0){
+if(!function_exists("prime_mover_new")){
+    function prime_mover_new($edit = 0){
+        $url_prefix = "";
         $ci =& get_instance();
         if(is_numeric($edit) && $edit!=0){  
 			$sql = $ci->db->get_where($ci->router->class,["_trash"=>"0","id"=>$edit]);
 			if($sql->num_rows()>0){
-				$data["edit"] = $sql->result()[0];
+                $data["edit"] = $sql->result()[0];
+                $data["main"] = "new";
 			}else{
 				show_404();
 			}
 		}
 		if($ci->input->method()=="post"){
+            if(isset($ci->table["form_filter_hooks"]["before_validation"])){
+                call_user_func($ci->table["form_filter_hooks"]["before_validation"]);
+            }
 			$fv = $ci->form_validation;
 			foreach($ci->table["form"] as $row){
 				foreach($row as $key => $element){
@@ -204,7 +210,7 @@ if(!function_exists("standard_new")){
 					}
 				}
             }
-            $after_submit_function_name = isset($ci->table["form_filter_hooks"]["after_submit"])?$ci->table["form_filter_hooks"]["after_submit"]:"alert";
+            $after_submit_function_name = isset($ci->table["form_filter_hooks"]["submit_message"])?$ci->table["form_filter_hooks"]["submit_message"]:"alert";
 			if($ci->form_validation->run()){
                 $edit_url = $ci->input->post("id")?"/".$ci->input->post("id"):"";
                 if(!empty($_FILES)){
@@ -221,7 +227,7 @@ if(!function_exists("standard_new")){
                                     $_POST[$name] = $ci->upload->data("file_name");
                                 }else{
                                     if(isset($row[$name]["required"]) && $row[$name]["required"]=="required" ){
-                                        call_user_func($after_submit_function_name,"<b>File upload error</b> <br>".$ci->upload->display_errors(),"danger","admin/".$ci->router->class."/".$ci->router->method.$edit_url."?". http_build_query($_POST) );
+                                        call_user_func($after_submit_function_name,"<b>File upload error</b> <br>".$ci->upload->display_errors(),"danger",$url_prefix.$ci->router->class."/".$ci->router->method.$edit_url."?". http_build_query($_POST) );
                                     }
                                 }
                             }
@@ -231,28 +237,28 @@ if(!function_exists("standard_new")){
                 }
 				if($ci->input->post("id")){
 					if($ci->Db_model->update($ci->router->class,$ci->input->post())){
-                        call_user_func($after_submit_function_name,$ci->router->class." has been update","success",base_url("admin/").$ci->router->class."/edit/".$ci->input->post("id"),$ci->input->post("id"));
+                        call_user_func($after_submit_function_name,$ci->router->class." has been update","success",base_url($url_prefix).$ci->router->class."/edit/".$ci->input->post("id"),$ci->input->post("id"));
                         
 					}else{
-						call_user_func($after_submit_function_name,"System Error,<br>Could not update","danger",base_url("admin/").$ci->router->class."/".$ci->router->method);
+						call_user_func($after_submit_function_name,"System Error,<br>Could not update","danger",base_url($url_prefix).$ci->router->class."/".$ci->router->method);
 					}
 				}else{
                     if($id = $ci->Db_model->save($ci->router->class,$ci->input->post())){
-                        call_user_func($after_submit_function_name,$ci->router->class." has been saved","success","admin/".$ci->router->class."/".$ci->router->method,$id);
+                        call_user_func($after_submit_function_name,$ci->router->class." has been saved","success",$url_prefix.$ci->router->class."/".$ci->router->method,$id);
                         
 					}else{
-						call_user_func($after_submit_function_name,"System Error,<br>Could not save","danger","admin/".$ci->router->class."/".$ci->router->method."?". http_build_query($_POST) );
+						call_user_func($after_submit_function_name,"System Error,<br>Could not save","danger",$url_prefix.$ci->router->class."/".$ci->router->method."?". http_build_query($_POST) );
 					}
 				}
 			}else{
-				call_user_func($after_submit_function_name,validation_errors(),"danger","admin/".$ci->router->class."/".$ci->router->method."?". http_build_query($_POST) );
+				call_user_func($after_submit_function_name,validation_errors(),"danger",$url_prefix.$ci->router->class."/".$ci->router->method."?". http_build_query($_POST) );
 			}
 		}
 		$ci->load->view('main', ( isset($data)?$data:"" ) );
     }
 }
 
-if(!function_exists("standard_list")){
+if(!function_exists("prime_mover_list")){
  /*
  *  var $table = list:array(
  *                          exclude : array(<column names >)
@@ -264,7 +270,7 @@ if(!function_exists("standard_list")){
  *                                              db_where(to add extra where condition):function()
  *                                          
  *                     )
- */   function standard_list(){
+ */   function prime_mover_list(){
         $ci =& get_instance();
         $fields = $ci->db->list_fields($ci->router->class);
 		if(isset($ci->table["list"]["exclude"]) && is_array($ci->table["list"]["exclude"])){
@@ -328,8 +334,8 @@ if(!function_exists("standard_list")){
                             }
 						}
                         $action = " ";
-                        $action.= '<a href="'.base_url("admin/").$ci->router->class."/edit/".$row->id.'" class="fa fa-edit fa-2x"></a>';
-                        $action.='<a href="'.base_url("admin/").$ci->router->class."/delete/".$row->id.'" class="fa fa-trash fa-2x text-danger"></a>';
+                        $action.= '<a href="'.base_url().$ci->router->class."/edit/".$row->id.'" class="fa fa-edit fa-2x"></a>';
+                        $action.='<a href="'.base_url().$ci->router->class."/delete/".$row->id.'" class="fa fa-trash fa-2x text-danger"></a>';
                         if(array_key_exists("col_action",$filter_hooks)){
                            $action = call_user_func($filter_hooks["col_action"],$action,$row->id);
                         }
@@ -343,7 +349,7 @@ if(!function_exists("standard_list")){
 					->_display();
 			die();
 		}
-        $data["data"]["fields"] = $fields;
+        $data["body"]["fields"] = $fields;
 		$ci->load->view('main', ( isset($data)?$data:"" ) );
     }
 }
