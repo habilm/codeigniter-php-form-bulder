@@ -8,16 +8,17 @@ if(!function_exists("form_builder")){
  * $table => form_filter_hooks : array(<hook_name>: array( <field_name/column_name> ) ) 
  * eg:"before_submit"=>["category_id"], the function will be before_submit_category_id
  */
-    function form_builder($edit=[],$custom_fields=""){
+    function form_builder($edit=[],$options=[]){
         if(empty($edit)){
             $edit = $_GET;
         }
         $edit = (array)$edit;
         echo isset($edit["id"])?"<input type='hidden' name='id' value='{$edit['id']}' >":"";
         $cl =& get_instance();
-        if(isset($cl->table["form"])){
+        if(isset($cl->table["form"]) || isset($options["is_custom_form_data"])){
             echo '<div class="box-body">';
-            foreach($cl->table["form"] as $frow){
+            $form_data = isset($options["is_custom_form_data"])?$edit:$cl->table["form"];
+            foreach($form_data as $frow){
                 ?>
                 <div class="row">
 
@@ -112,7 +113,11 @@ if(!function_exists("form_builder")){
                                             }
                                         ?>
                                     </select>
-                                <?php }else{?>
+                                <?php }else if($attributes["type"]=="file") { ?>
+                                    <?php echo "<span class='badge badge-info'>".(isset($edit[$fm_control])?$edit[$fm_control]:"")."</span>" ?>
+                                    <input  type="<?=$attributes["type"] ?>"  <?= $html_attr ?> name="<?=$fm_control ?>">
+                                   <?php 
+                                }else{?>
                                     <input type="<?=$attributes["type"] ?>"  <?= $html_attr ?> name="<?=$fm_control ?>">
                                 <?php } ?>
                             </div>
@@ -127,10 +132,12 @@ if(!function_exists("form_builder")){
             
         }   ?>
             </div>
-            <?= $custom_fields ?>
+            <?= isset($options["custom_fields"])?$options["custom_fields"]:"" ?>
+            <?= isset($options["submit_button"])?$options["submit_button"]:'
             <div class="box-footer">
                 <input type="submit" class="btn btn-primary" value="Submit">
-            </div>
+            </div>' ?>
+            
             <?php
     }
 }
@@ -216,11 +223,14 @@ if(!function_exists("prime_mover_new")){
                 if(!empty($_FILES)){
                     foreach($_FILES as $name => $property ){
                         $config = [
-                            "upload_path"=>"./public/uploads",
+                            "upload_path"=>"./assets/uploads",
                             "max_size"=>3000
                         ];
                         foreach($ci->table["form"] as $row){
                             if(isset($row[$name]) && isset($row[$name]["allowed_types"])){
+                                if(isset($row[$name]["upload_path"])){
+                                    $config["upload_path"] = $row[$name]["upload_path"];
+                                }
                                 $config["allowed_types"]=$row[$name]["allowed_types"];
                                 $ci->load->library("upload",$config);
                                 if($ci->upload->do_upload($name)){
@@ -235,6 +245,7 @@ if(!function_exists("prime_mover_new")){
                     }
 
                 }
+                $_POST = isset($ci->table["form_filter_hooks"]["before_save"])?call_user_func($ci->table["form_filter_hooks"]["before_save"],$_POST):$_POST;
 				if($ci->input->post("id")){
 					if($ci->Db_model->update($ci->router->class,$ci->input->post())){
                         call_user_func($after_submit_function_name,$ci->router->class." has been update","success",base_url($url_prefix).$ci->router->class."/edit/".$ci->input->post("id"),$ci->input->post("id"));
