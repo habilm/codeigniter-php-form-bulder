@@ -104,9 +104,9 @@ if(!function_exists("form_builder")){
                                                 }
                                             }elseif(isset($attributes["values"])){
                                                 foreach($attributes["values"] as $key => $option){
-                                                    $selected="";
+                                                    $selected = "";
                                                     if((isset($edit[$fm_control]) && ($edit[$fm_control]==$key || strpos($edit[$fm_control],$key) ))|| $attributes["value"] == $key){
-                                                        $selected="selected";
+                                                        $selected = "selected";
                                                     }
                                                     echo "<option value='$key' $selected>$option</option>";
                                                 }
@@ -115,7 +115,9 @@ if(!function_exists("form_builder")){
                                     </select>
                                 <?php }else if($attributes["type"]=="file") { ?>
                                     <?php echo "<span class='badge badge-info'>".(isset($edit[$fm_control])?$edit[$fm_control]:"")."</span>" ?>
-                                    <input  type="<?=$attributes["type"] ?>"  <?= $html_attr ?> name="<?=$fm_control ?>">
+                                  
+                                    <?php  $is_multiple =  isset($attributes["multiple"])?"[]":"" ?>
+                                    <input  type="<?=$attributes["type"] ?>"  <?= $html_attr ?>name="<?=$fm_control.$is_multiple  ?>">
                                    <?php 
                                 }else{?>
                                     <input type="<?=$attributes["type"] ?>"  <?= $html_attr ?> name="<?=$fm_control ?>">
@@ -190,13 +192,15 @@ if(!function_exists("to_html_attr")){
  */
 if(!function_exists("prime_mover_new")){
     function prime_mover_new($edit = 0){
+        
         $url_prefix = "";
         $ci =& get_instance();
+        $base= ($base = $ci->config->item("prime_mover_base") )?$base."/":"";
         if(is_numeric($edit) && $edit!=0){  
 			$sql = $ci->db->get_where($ci->router->class,["_trash"=>"0","id"=>$edit]);
 			if($sql->num_rows()>0){
                 $data["edit"] = $sql->result()[0];
-                $data["main"] = "new";
+                $data["main"] = ( $view_file = $ci->config->item("prime_mover_view_file_create"))?$view_file:"new";
 			}else{
 				show_404();
 			}
@@ -233,11 +237,29 @@ if(!function_exists("prime_mover_new")){
                                 }
                                 $config["allowed_types"]=$row[$name]["allowed_types"];
                                 $ci->load->library("upload",$config);
-                                if($ci->upload->do_upload($name)){
-                                    $_POST[$name] = $ci->upload->data("file_name");
+                                
+                                if(is_array($property["name"]) && count($property["name"])>0){
+                                    foreach($property["name"] as $key => $value){
+                                        $_FILES['_dd_file']['name']= $_FILES[$name]['name'][$key];
+                                        $_FILES['_dd_file']['type']= $_FILES[$name]['type'][$key];
+                                        $_FILES['_dd_file']['tmp_name']= $_FILES[$name]['tmp_name'][$key];
+                                        $_FILES['_dd_file']['error']= $_FILES[$name]['error'][$key];
+                                        $_FILES['_dd_file']['size']= $_FILES[$name]['size'][$key];
+                                        if($ci->upload->do_upload("_dd_file")){
+                                            $_POST[$name] .= $ci->upload->data("file_name")."|";
+                                        }else{
+                                            if(isset($row[$name]["required"]) && $row[$name]["required"]=="required" ){
+                                                call_user_func($after_submit_function_name,"<b>File upload error</b> <br>".$ci->upload->display_errors(),"danger",$base.$url_prefix.$ci->router->class."/".$ci->router->method.$edit_url."?". http_build_query($_POST) );
+                                            }
+                                        }
+                                    }
                                 }else{
-                                    if(isset($row[$name]["required"]) && $row[$name]["required"]=="required" ){
-                                        call_user_func($after_submit_function_name,"<b>File upload error</b> <br>".$ci->upload->display_errors(),"danger",$url_prefix.$ci->router->class."/".$ci->router->method.$edit_url."?". http_build_query($_POST) );
+                                    if($ci->upload->do_upload($name)){
+                                        $_POST[$name] = $ci->upload->data("file_name");
+                                    }else{
+                                        if(isset($row[$name]["required"]) && $row[$name]["required"]=="required" ){
+                                            call_user_func($after_submit_function_name,"<b>File upload error</b> <br>".$ci->upload->display_errors(),"danger",$base.$url_prefix.$ci->router->class."/".$ci->router->method.$edit_url."?". http_build_query($_POST) );
+                                        }
                                     }
                                 }
                             }
@@ -248,24 +270,25 @@ if(!function_exists("prime_mover_new")){
                 $_POST = isset($ci->table["form_filter_hooks"]["before_save"])?call_user_func($ci->table["form_filter_hooks"]["before_save"],$_POST):$_POST;
 				if($ci->input->post("id")){
 					if($ci->Db_model->update($ci->router->class,$ci->input->post())){
-                        call_user_func($after_submit_function_name,$ci->router->class." has been update","success",base_url($url_prefix).$ci->router->class."/edit/".$ci->input->post("id"),$ci->input->post("id"));
+                        call_user_func($after_submit_function_name,$ci->router->class." has been update","success",base_url($base.$url_prefix).$ci->router->class."/edit/".$ci->input->post("id"),$ci->input->post("id"));
                         
 					}else{
-						call_user_func($after_submit_function_name,"System Error,<br>Could not update","danger",base_url($url_prefix).$ci->router->class."/".$ci->router->method);
+						call_user_func($after_submit_function_name,"System Error,<br>Could not update","danger",base_url($base.$url_prefix).$ci->router->class."/".$ci->router->method);
 					}
 				}else{
                     if($id = $ci->Db_model->save($ci->router->class,$ci->input->post())){
-                        call_user_func($after_submit_function_name,$ci->router->class." has been saved","success",$url_prefix.$ci->router->class."/".$ci->router->method,$id);
+                        call_user_func($after_submit_function_name,$ci->router->class." has been saved","success",$base.$url_prefix.$ci->router->class."/".$ci->router->method,$id);
                         
 					}else{
-						call_user_func($after_submit_function_name,"System Error,<br>Could not save","danger",$url_prefix.$ci->router->class."/".$ci->router->method."?". http_build_query($_POST) );
+						call_user_func($after_submit_function_name,"System Error,<br>Could not save","danger",$base.$url_prefix.$ci->router->class."/".$ci->router->method."?". http_build_query($_POST) );
 					}
 				}
 			}else{
-				call_user_func($after_submit_function_name,validation_errors(),"danger",$url_prefix.$ci->router->class."/".$ci->router->method."?". http_build_query($_POST) );
+				call_user_func($after_submit_function_name,validation_errors(),"danger",$base.$url_prefix.$ci->router->class."/".$ci->router->method."?". http_build_query($_POST) );
 			}
-		}
-		$ci->load->view('main', ( isset($data)?$data:"" ) );
+        }
+
+		$ci->load->view($base.'main', ( isset($data)?$data:"" ) );
     }
 }
 
@@ -283,6 +306,7 @@ if(!function_exists("prime_mover_list")){
  *                     )
  */   function prime_mover_list(){
         $ci =& get_instance();
+        $base= ($base = $ci->config->item("prime_mover_base") )?$base."/":"";
         $fields = $ci->db->list_fields($ci->router->class);
 		if(isset($ci->table["list"]["exclude"]) && is_array($ci->table["list"]["exclude"])){
 			$fields = array_diff($fields,$ci->table["list"]["exclude"]);
@@ -345,8 +369,8 @@ if(!function_exists("prime_mover_list")){
                             }
 						}
                         $action = " ";
-                        $action.= '<a href="'.base_url().$ci->router->class."/edit/".$row->id.'" class="fa fa-edit fa-2x"></a>';
-                        $action.='<a href="'.base_url().$ci->router->class."/delete/".$row->id.'" class="fa fa-trash fa-2x text-danger"></a>';
+                        $action.= '<a href="'.base_url($base."/").$ci->router->class."/edit/".$row->id.'" class="fa fa-edit fa-2x"></a>';
+                        $action.='<a href="'.base_url($base."/").$ci->router->class."/delete/".$row->id.'" class="fa fa-trash fa-2x text-danger"></a>';
                         if(array_key_exists("col_action",$filter_hooks)){
                            $action = call_user_func($filter_hooks["col_action"],$action,$row->id);
                         }
@@ -361,6 +385,7 @@ if(!function_exists("prime_mover_list")){
 			die();
 		}
         $data["body"]["fields"] = $fields;
-		$ci->load->view('main', ( isset($data)?$data:"" ) );
+        $base= ($base = $ci->config->item("prime_mover_base") )?$base."/":"";
+		$ci->load->view($base.'main', ( isset($data)?$data:"" ) );
     }
 }
