@@ -144,8 +144,8 @@ if(!function_exists("form_builder")){
 
 if(!function_exists("to_html_attr")){
     function to_html_attr($rule){
-        $rule = str_replace("]","",$rule);
-        $case = explode("[",$rule);
+        $rule = preg_replace("/\/]$/","",$rule);
+        $case = preg_split("/\[/",$rule,2);
         switch($case[0]){
             case "required":{
                 return ["required"=>"required"];
