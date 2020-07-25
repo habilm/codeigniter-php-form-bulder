@@ -27,7 +27,6 @@ function options_view($options_table){
                     $json_array = (array)json_decode($app_option->form);
                     $json_array["data-id"] = $app_option->id;
                     $json_array["value"] = $app_option->value;
-                    $json_array["data-value"] = $app_option->value;
                     if(is_array($json_array)){
                         $opt_form[]=[$app_option->name => $json_array];
                     }
@@ -44,27 +43,15 @@ function options_view($options_table){
 
 function options_controller($that){
     if($that->input->is_ajax_request()){
-        if(isset($_FILES) && isset($_FILES["value"])){
-            $config = [
-                "upload_path"=>("./assets/images"),
-                "max_size"=>3000,
-                "allowed_types" => "jpg|gif|png|jpeg|JPG|PNG|JPEG|GIF",
-            ];
-            $that->load->library("upload",$config);
-            if($that->upload->do_upload("value")){
-                $_POST["value"] = $that->upload->data("file_name");
-            }else{
-                $out = ["status"=>"error", "message"=>$that->upload->display_errors()];
-            }
-        }
-        if(isset($_POST["value"])){
-            if($that->Db_model->update($that->router->class,$that->input->post(null,true))){
-                $that->Db_model->update_app_options_session();
-                $out=["status"=>"success","message"=>"Changes has been saved"];
-            }else{
-                $out=["status"=>"error","message"=>"System error. Can't save right now"];
-    
-            }
+        // print_r($_FILES);
+        // die;
+// print_r($_FILES);
+        if($that->Db_model->update($that->router->class,$that->input->post())){
+            $that->Db_model->update_app_options_session();
+            $out=["status"=>"success","message"=>"Changes has been saved"];
+        }else{
+            $out=["status"=>"error","message"=>"System error. Can't save right now"];
+
         }
         $that->output
                 ->set_status_header(200)

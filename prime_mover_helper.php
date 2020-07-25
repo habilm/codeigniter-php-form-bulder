@@ -24,7 +24,6 @@ if(!function_exists("form_builder")){
 
                 <?php 
                 foreach($frow as $key => $col){
-                    
                     $attributes=array("type"=>"text","label"=>$col,"pattern"=>"","rows"=>"3","class"=>"form-control form-control-sm","maxlength"=>255);
                     if(is_array($col)){
                         $fm_control = str_replace(" ","",$key);
@@ -55,7 +54,6 @@ if(!function_exists("form_builder")){
                             echo '<h4 class="text-danger">function not found</h4>';
                         }
                     }
-
                     $html_attr = $parent_facts = "";
                     foreach($attributes as $attr_name => $attribute){
                         if(is_array($attribute) && $attr_name=="parent"){
