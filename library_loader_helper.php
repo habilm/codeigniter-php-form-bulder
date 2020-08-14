@@ -1,5 +1,15 @@
 <?php
 $load=[];
+$GLOBALS["html_library"] =[
+    "data_table" => [
+        ["dataTables.bootstrap4.min.css"],["jquery.dataTables.js","dataTables.bootstrap4.min.js"]
+    ],
+    "chart_js"=>
+    [
+        ["Chart.min.css"],["Chart.min.js"]
+    ],
+    "options-control"=>[[],["options-control.js"]]
+];
 function load_library($libraries = []){
     if(is_array($libraries)){
         foreach($libraries as $lib){
@@ -8,22 +18,15 @@ function load_library($libraries = []){
     }else{
         $GLOBALS["load"][] = $libraries;
     }
-    
-    $GLOBALS["html_library"] =[
-        "data_table" => [
-            ["dataTables.bootstrap4.min.css"],["jquery.dataTables.js","dataTables.bootstrap4.min.js"]
-        ],
-        "selectize" => [
-            ["css/selectize.css"],["js/standalone/selectize.min.js"]
-        ],
-        "chart_js"=>
-        [
-            ["Chart.min.css"],["Chart.min.js"]
-        ],
-        "options-control"=>[[],["options-control.js"]]
-    ];
+}
+$GLOBALS["set_libraries"]=[];
+function set_library($libraries = []){
+    $key = array_keys($libraries);
+    $GLOBALS["html_library"][$key[0]] = $libraries[$key[0]];
+    $GLOBALS["set_libraries"][] = $key[0];
 }
 function get_html_library($location){
+
     if($location=="header"){
         $location = 0;
     }else{

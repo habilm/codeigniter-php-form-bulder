@@ -57,6 +57,7 @@ function options_controller($that){
                 $out = ["status"=>"error", "message"=>$that->upload->display_errors()];
             }
         }
+
         if(isset($_POST["value"])){
             if($that->Db_model->update($that->router->class,$that->input->post(null,true))){
                 $that->Db_model->update_app_options_session();
@@ -65,6 +66,8 @@ function options_controller($that){
                 $out=["status"=>"error","message"=>"System error. Can't save right now"];
     
             }
+        }else{
+            $out=["status"=>"error","message"=>"value not set"];
         }
         $that->output
                 ->set_status_header(200)

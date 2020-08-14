@@ -35,7 +35,7 @@ if(!function_exists("form_builder")){
                             foreach($rules as $rule){
                                 $attributes = array_merge($attributes,to_html_attr($rule));
                             }
-                            unset($attributes["rules"],$attributes["colspan"]);
+                            unset($attributes["rules"]);
                         }
                         if(isset($attributes["name"])){
                             $fm_control= str_replace(" ","",trim($attributes["name"]));
@@ -84,7 +84,7 @@ if(!function_exists("form_builder")){
                             <div class="form-group">
                                 <label><?=ucfirst($attributes["label"])?></label>
                                 <?php if($attributes["type"]=="textarea"){ ?>
-                                    <textarea name="<?=$fm_control ?>" <?= $html_attr ?>><?= isset($edit[$fm_control])?$edit[$fm_control]:"" ?></textarea>
+                                    <textarea name="<?=$fm_control ?>" <?= $html_attr ?>><?= isset($edit[$fm_control])?$edit[$fm_control]:$attributes["value"] ?></textarea>
                                 <?php }elseif($attributes["type"]=="select"){?>
                                     <select name="<?=$fm_control.(isset($attributes["multiple"]) && $attributes["multiple"]=="multiple"?"[]":"") ?>"  <?= $html_attr ?> >
                                         <?php
