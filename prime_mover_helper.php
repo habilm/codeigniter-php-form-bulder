@@ -15,7 +15,7 @@ if(!function_exists("form_builder")){
         $edit = (array)$edit;
         echo isset($edit["id"])?"<input type='hidden' name='id' value='{$edit['id']}' >":"";
         $cl =& get_instance();
-        $table_config = $cl->config->item("form_structure")[$cl->router->class];
+        $table_config = isset($cl->config->item("form_structure")[$cl->router->class])?$cl->config->item("form_structure")[$cl->router->class]:[];
         if(isset($table_config["form"]) || isset($options["is_custom_form_data"])){
             echo '<div class="box-body">';
             $form_data = isset($options["is_custom_form_data"])?$edit:$table_config["form"];
@@ -107,7 +107,9 @@ if(!function_exists("form_builder")){
                                             }elseif(isset($attributes["values"])){
                                                 foreach($attributes["values"] as $key => $option){
                                                     $selected = "";
-                                                    if((isset($edit[$fm_control]) && ($edit[$fm_control]==$key || strpos($edit[$fm_control],$key) ))|| $attributes["value"] == $key){
+                                                    
+                                                    $selected_values = explode(",",$edit[$fm_control]) ;
+                                                    if((isset($edit[$fm_control]) && ($edit[$fm_control]==$key || in_array($key, $selected_values) ))|| $attributes["value"] == $key){
                                                         $selected = "selected";
                                                     }
                                                     echo "<option value='$key' $selected>$option</option>";
