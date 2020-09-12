@@ -28,9 +28,9 @@ function options_view($options_table){
                     $json_array["data-id"] = $app_option->id;
                     $json_array["value"] = $app_option->value;
                     $json_array["data-value"] = $app_option->value;
-                    if(is_array($json_array)){
-                        $opt_form[]=[$app_option->name => $json_array];
-                    }
+                
+                    $opt_form[]=[$app_option->name => $json_array];
+        
                 }
                 echo "<form action='' method='post' id='options-field-$app_option->id'>";
                 echo "<input type='hidden' value='{$app_option->id}' name='id'>";
@@ -75,6 +75,32 @@ function options_controller($that){
                 ->set_output(json_encode($out))
                 ->_display();
                 die();
+    }
+}
+function get_options($key,$full_data=false) {
+    $ci =& get_instance();
+    if(is_array($key)){
+        foreach($key as $name){
+            $ci->db->or_where("name",$name);
+        }
+    }else{
+        $ci->db->where(["name"=>$key]);
+    }
+    $option = $ci->db->get_where("options");
+    if($option->num_rows()<=0){
+        show_error("the $key setting not found");
+    }else{
+        if(is_array($key)){
+            $out = $option->result();
+            $return = [];
+            foreach($out as $row){
+                $return[$row->name] = $full_data? $row : $row->value;
+            }
+
+            return $return;
+        }else{
+            return $full_data ? $option->result()[0] : $option->result()[0]->value;
+        }
     }
 }
 ?>
