@@ -43,9 +43,6 @@ function options_view($options_table){
 
 function options_controller($that){
     if($that->input->is_ajax_request()){
-        // print_r($_FILES);
-        // die;
-// print_r($_FILES);
         if($that->Db_model->update($that->router->class,$that->input->post())){
             $that->Db_model->update_app_options_session();
             $out=["status"=>"success","message"=>"Changes has been saved"];

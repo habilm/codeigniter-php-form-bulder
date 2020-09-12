@@ -15,9 +15,13 @@ if(!function_exists("form_builder")){
         $edit = (array)$edit;
         echo isset($edit["id"])?"<input type='hidden' name='id' value='{$edit['id']}' >":"";
         $cl =& get_instance();
-        if(isset($cl->table["form"]) || isset($options["is_custom_form_data"])){
+        $table_config = $cl->config->item("form_structure")[$cl->router->class];
+        if(isset($table_config["form"]) || isset($options["is_custom_form_data"])){
             echo '<div class="box-body">';
-            $form_data = isset($options["is_custom_form_data"])?$edit:$cl->table["form"];
+            $form_data = isset($options["is_custom_form_data"])?$edit:$table_config["form"];
+            if(isset($options["is_custom_form_data"]) && isset($options["edit"])){
+                $edit = $options["edit"];
+            }
             foreach($form_data as $frow){
                 ?>
                 <div class="row">
@@ -189,10 +193,12 @@ if(!function_exists("to_html_attr")){
  * 
  */
 if(!function_exists("prime_mover_new")){
-    function prime_mover_new($edit = 0){
+    function prime_mover_new($edit = 0,array $table_config=[]){
         
         $url_prefix = "";
         $ci =& get_instance();
+        $table = isset($table_config["config"])?$table_config["config"]:$ci->config->item("form_structure")[$ci->router->class];
+        $table_name = isset($table_config["table_name"])?$table_config["table_name"]:$ci->router->class;
         $base= ($base = $ci->config->item("prime_mover_base") )?$base."/":"";
         if(is_numeric($edit) && $edit!=0){  
 			$sql = $ci->db->get_where($ci->router->class,["_trash"=>"0","id"=>$edit]);
@@ -204,11 +210,11 @@ if(!function_exists("prime_mover_new")){
 			}
 		}
 		if($ci->input->method()=="post"){
-            if(isset($ci->table["form_filter_hooks"]["before_validation"])){
-                call_user_func($ci->table["form_filter_hooks"]["before_validation"]);
+            if(isset($table["form_filter_hooks"]["before_validation"])){
+                call_user_func($table["form_filter_hooks"]["before_validation"]);
             }
 			$fv = $ci->form_validation;
-			foreach($ci->table["form"] as $row){
+			foreach($table["form"] as $row){
 				foreach($row as $key => $element){
 					if(is_array($element)){
 						$field_name = isset($element["label"])?$element["label"]: $key;
@@ -219,7 +225,8 @@ if(!function_exists("prime_mover_new")){
 					}
 				}
             }
-            $after_submit_function_name = isset($ci->table["form_filter_hooks"]["submit_message"])?$ci->table["form_filter_hooks"]["submit_message"]:"alert";
+            $after_submit_function_name = isset($table["form_filter_hooks"]["submit_message"])?$table["form_filter_hooks"]["submit_message"]:"alert";
+            
 			if($ci->form_validation->run()){
                 $edit_url = $ci->input->post("id")?"/".$ci->input->post("id"):"";
                 if(!empty($_FILES)){
@@ -228,8 +235,9 @@ if(!function_exists("prime_mover_new")){
                             "upload_path"=>"./assets/uploads",
                             "max_size"=>3000
                         ];
-                        foreach($ci->table["form"] as $row){
+                        foreach($table["form"] as $row){
                             if(isset($row[$name]) && isset($row[$name]["allowed_types"])){
+            
                                 if(isset($row[$name]["upload_path"])){
                                     $config["upload_path"] = $row[$name]["upload_path"];
                                 }
@@ -246,15 +254,19 @@ if(!function_exists("prime_mover_new")){
                                         if($ci->upload->do_upload("_dd_file")){
                                             $_POST[$name] .= $ci->upload->data("file_name")."|";
                                         }else{
+                                            
                                             if(isset($row[$name]["required"]) && $row[$name]["required"]=="required" ){
                                                 call_user_func($after_submit_function_name,"<b>File upload error</b> <br>".$ci->upload->display_errors(),"danger",$base.$url_prefix.$ci->router->class."/".$ci->router->method.$edit_url."?". http_build_query($_POST) );
                                             }
                                         }
                                     }
                                 }else{
+                                            
                                     if($ci->upload->do_upload($name)){
                                         $_POST[$name] = $ci->upload->data("file_name");
+                                        
                                     }else{
+                                        // echo "Hi".$name.$ci->upload->display_errors();
                                         if(isset($row[$name]["required"]) && $row[$name]["required"]=="required" ){
                                             call_user_func($after_submit_function_name,"<b>File upload error</b> <br>".$ci->upload->display_errors(),"danger",$base.$url_prefix.$ci->router->class."/".$ci->router->method.$edit_url."?". http_build_query($_POST) );
                                         }
@@ -265,24 +277,24 @@ if(!function_exists("prime_mover_new")){
                     }
 
                 }
-                $_POST = isset($ci->table["form_filter_hooks"]["before_save"])?call_user_func($ci->table["form_filter_hooks"]["before_save"],$_POST):$_POST;
+                $_POST = isset($table["form_filter_hooks"]["before_save"])?call_user_func($table["form_filter_hooks"]["before_save"],$_POST):$_POST;
 				if($ci->input->post("id")){
-					if($ci->Db_model->update($ci->router->class,$ci->input->post())){
-                        call_user_func($after_submit_function_name,$ci->router->class." has been update","success",base_url($base.$url_prefix).$ci->router->class."/edit/".$ci->input->post("id"),$ci->input->post("id"));
+					if($ci->Db_model->update($table_name,$ci->input->post())){
+                        call_user_func($after_submit_function_name,$table_name." has been update","success",base_url($base.$url_prefix).$table_name."/edit/".$ci->input->post("id"),$ci->input->post("id"));
                         
 					}else{
-						call_user_func($after_submit_function_name,"System Error,<br>Could not update","danger",base_url($base.$url_prefix).$ci->router->class."/".$ci->router->method);
+						call_user_func($after_submit_function_name,"System Error,<br>Could not update","danger",base_url($base.$url_prefix).$table_name."/".$ci->router->method);
 					}
 				}else{
-                    if($id = $ci->Db_model->save($ci->router->class,$ci->input->post())){
-                        call_user_func($after_submit_function_name,$ci->router->class." has been saved","success",$base.$url_prefix.$ci->router->class."/".$ci->router->method,$id);
+                    if($id = $ci->Db_model->save($table_name,$ci->input->post())){
+                        call_user_func($after_submit_function_name,$table_name." has been saved","success",$base.$url_prefix.$table_name."/".$ci->router->method,$id);
                         
 					}else{
-						call_user_func($after_submit_function_name,"System Error,<br>Could not save","danger",$base.$url_prefix.$ci->router->class."/".$ci->router->method."?". http_build_query($_POST) );
+						call_user_func($after_submit_function_name,"System Error,<br>Could not save","danger",$base.$url_prefix.$table_name."/".$ci->router->method."?". http_build_query($_POST) );
 					}
 				}
 			}else{
-				call_user_func($after_submit_function_name,validation_errors(),"danger",$base.$url_prefix.$ci->router->class."/".$ci->router->method."?". http_build_query($_POST) );
+				call_user_func($after_submit_function_name,validation_errors(),"danger",$base.$url_prefix.$table_name."/".$ci->router->method."?". http_build_query($_POST) );
 			}
         }
 
@@ -302,88 +314,107 @@ if(!function_exists("prime_mover_list")){
  *                                              db_where(to add extra where condition):function()
  *                                          
  *                     )
- */   function prime_mover_list(){
+ */   function prime_mover_list($table_config=[],$options=[]){
         $ci =& get_instance();
+
+        $table = count($table_config)<=0?$ci->config->item("form_structure")[$ci->router->class]:$table_config;
         $base= ($base = $ci->config->item("prime_mover_base") )?$base."/":"";
+
+    
         $fields = $ci->db->list_fields($ci->router->class);
-		if(isset($ci->table["list"]["exclude"]) && is_array($ci->table["list"]["exclude"])){
-			$fields = array_diff($fields,$ci->table["list"]["exclude"]);
+		if(isset($table["list"]["exclude"]) && is_array($table["list"]["exclude"])){
+			$fields = array_diff($fields,$table["list"]["exclude"]);
         }
-        
-		if($ci->input->is_ajax_request()){
-            // print_r($_GET);
-            $filter_hooks = isset($ci->table["list"]["filter_hooks"])?$ci->table["list"]["filter_hooks"]:[];
-
-            $ci->db->from("{$ci->router->class} as me");
-			$out["draw"] = $ci->input->get("draw");
-			if(isset($ci->table["list"]["join"])){
-				$join = $ci->table["list"]["join"][0];
-				$field = $ci->table["list"]["join"][1];
-                $select = $ci->table["list"]["join"][2];
-				$ci->db->select(" me.*,$join.$select");
-				$ci->db->join($join,"me.$field = $join.id","left");
-            }
-            key_exists("db_where",$filter_hooks)?$ci->db->where(call_user_func($filter_hooks["db_where"]) ):"";
-			$ci->db->where(["me._trash"=>"0"]);
-			$like = [];
-			if(!empty($ci->input->get("search")["value"])){
-				foreach($fields as $field){
-					$like[$field] = $ci->input->get("search")["value"];
-				}
-				$ci->db->or_like($like);
-			}
-			
-			$out["recordsTotal"] = $out["recordsFiltered"]  = $ci->db->count_all_results(); 
-
-			if($ci->input->get("order") && isset($fields[$ci->input->get("order")[0]["column"]]) ){
-				$ci->db->order_by($fields[$ci->input->get("order")[0]["column"]],$ci->input->get("order")[0]["dir"]);
-			}
-			$ci->db->from("{$ci->router->class} as me"); 	
-			if(isset($ci->table["list"]["join"])){
-				$join = $ci->table["list"]["join"][0];
-				$field = $ci->table["list"]["join"][1];
-				$select = $ci->table["list"]["join"][2];
-				$ci->db->select(" me.*,$join.$select");
-				$ci->db->join($join,"me.$field = $join.id","left");
-            }
-            
-            key_exists("db_where",$filter_hooks)?$ci->db->where(call_user_func($filter_hooks["db_where"]) ):"";
-			$ci->db->or_like($like);
-			$ci->db->limit($ci->input->get("length"),$ci->input->get("start"));
-			$list = $ci->db->get_where("",["me._trash"=>"0"])->result();
-			$out["data"]=[];
-			foreach($list as $row){
-					$column = [];
-						foreach($fields as $field){
-							if(isset($ci->table["list"]["join"])){
-								if($field == $ci->table["list"]["join"][1]){
-									$field = $ci->table["list"]["join"][2];
-								}
-							}
-                            if(array_key_exists("col_".$field,$filter_hooks)){
-                                $column[] = call_user_func($filter_hooks["col_".$field],$row->{$field},$row->id);
-                            }else{
-                                $column[] = $row->{$field};
-                            }
-						}
-                        $action = " ";
-                        $action.= '<a href="'.base_url($base."/").$ci->router->class."/edit/".$row->id.'" class="fa fa-edit fa-2x"></a>';
-                        $action.='<a href="'.base_url($base."/").$ci->router->class."/delete/".$row->id.'" class="fa fa-trash fa-2x text-danger"></a>';
-                        if(array_key_exists("col_action",$filter_hooks)){
-                           $action = call_user_func($filter_hooks["col_action"],$action,$row->id);
-                        }
-                        $column[] = $action;
-						$out["data"][] = $column;
-					}
-					$ci->output
-					->set_status_header(200)
-					->set_content_type('application/json', 'utf-8')
-					->set_output(json_encode($out))
-					->_display();
-			die();
-		}
+        if(isset($options["class"])){
+            $data["class_name"] = $options["class"];
+        }
+        if(isset($options["method"])){
+            $data["main"] = $options["method"];
+        }
         $data["body"]["fields"] = $fields;
+        $data["body_only"] = isset($options["body_only"]) && $options["body_only"] ? true: false;
         $base= ($base = $ci->config->item("prime_mover_base") )?$base."/":"";
 		$ci->load->view($base.'main', ( isset($data)?$data:"" ) );
+    }
+}
+
+function get_the_table($fields,$options=[]){
+    $ci = & get_instance();
+    $table_data = isset($options["table"]) ? $options["table"] : $ci->config->item("form_structure")[$ci->router->class];
+?>
+<div class="row">
+            <div class="col-sm-12">
+                <table id="dataTable" data-url="<?= base_url() ?>" class="table table-hover table-striped">
+                    <thead>
+                        <tr>
+                            <?php
+                                foreach($fields as $field){
+                                    
+                                    $jump = true;
+                                    $exclude = [];
+                                    $realName = $field;
+                                    if(isset($table_data) && isset($table_data["list"]["exclude"])){
+                                        $jump = false;
+                                        $exclude=$table_data["list"]["exclude"];
+                                        if(isset($table_data["list"]["rename"])){
+                                            if(array_key_exists($field,$table_data["list"]["rename"])){
+                                                $field = $table_data["list"]["rename"][$field];
+                                            }
+                                        }
+                                    }
+                                    if( $ci->session->userdata("user")["id"]==1 || ( in_array($realName,["mobile","firebaseid","advertisingid"]) && in_array("show_contact_data",$ci->permissions["users"])  ) || !in_array($realName,["mobile","firebaseid","advertisingid"]) ){
+                                        if(!in_array($field,$exclude) || $jump){
+                                            echo "
+                                            <th>".( ucfirst(str_replace("_"," ",$field)) )."
+                                            </th>";
+                                        }
+                                    }
+                                    
+                                }
+                            ?>
+                            <th>Actions
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <?php
+                        
+                    ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+<?php
+}
+if(!function_exists("alert")){
+    function alert($msg,$cls="",$redirection=""){
+        $ci =& get_instance();
+       if($ci->input->is_ajax_request()){
+           $header_code = 500;
+           switch($cls){
+               case "success":
+                $header_code= 200;
+               break;
+               case "danger":
+                $header_code = 422;
+                break;
+                case "info":
+                    $header_code = 200;
+                break;
+           }
+        $ci->output
+        ->set_status_header($header_code)
+        ->set_content_type('application/json', 'utf-8')
+        ->set_output(json_encode(["message"=>$msg,"status"=>$cls]))
+        ->_display();
+        die;
+       }else{
+            $_SESSION["alerts"] = isset($_SESSION["alerts"])?$_SESSION["alerts"]:[];
+            $_SESSION["alerts"][] = ["message"=>$msg,"class"=>$cls];
+            
+            if(!empty($redirection)){
+                redirect($redirection);
+            }
+       }
     }
 }
