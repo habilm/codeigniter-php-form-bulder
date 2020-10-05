@@ -15,7 +15,7 @@ if(!function_exists("form_builder")){
         $edit = (array)$edit;
         echo isset($edit["id"])?"<input type='hidden' name='id' value='{$edit['id']}' >":"";
         $cl =& get_instance();
-        $table_config = $cl->config->item("form_structure")[$cl->router->class];
+        $table_config =  isset($options["is_custom_form_data"])?[]:$cl->config->item("form_structure")[$cl->router->class];
         if(isset($table_config["form"]) || isset($options["is_custom_form_data"])){
             echo '<div class="box-body">';
             $form_data = isset($options["is_custom_form_data"])?$edit:$table_config["form"];
@@ -64,7 +64,8 @@ if(!function_exists("form_builder")){
                             $parent_facts.="data-parent-name='{$attribute[0]}' data-parent-value='".(isset($attribute[1])?$attribute[1]:"")."'";
                             $html_attr.="disabled='disabled'";
                         }
-                        if(!is_array($attribute) && !in_array($attr_name,["label"]) && !empty(trim($attribute)) ){
+                        
+                        if(!is_array($attribute) && !in_array($attr_name,["label","table","table_column"]) && ( is_numeric($attribute) || !empty(trim($attribute)) ) ){
                             $html_attr.="$attr_name='$attribute' ";
                         }
                     }
@@ -89,20 +90,30 @@ if(!function_exists("form_builder")){
                                 <label><?=ucfirst($attributes["label"])?></label>
                                 <?php if($attributes["type"]=="textarea"){ ?>
                                     <textarea name="<?=$fm_control ?>" <?= $html_attr ?>><?= isset($edit[$fm_control])?$edit[$fm_control]:$attributes["value"] ?></textarea>
-                                <?php }elseif($attributes["type"]=="select"){?>
+                                <?php }elseif($attributes["type"]=="select"){
+                                    
+                                    
+                                    ?>
                                     <select name="<?=$fm_control.(isset($attributes["multiple"]) && $attributes["multiple"]=="multiple"?"[]":"") ?>"  <?= $html_attr ?> >
                                         <?php
                                             if(isset($attributes["table"])){
                                                 $value_key = isset($attributes["key"])?$attributes["key"]:"id";
+
+                                                $select_select = "name,id";
+                                                $table_val = isset($attributes["table_val"])?$attributes["table_val"]:"name";
+                                                if(isset($attributes["table_select"])){
+                                                    $select_col = $attributes["table_select"];
+                                                    $cl->db->select("$select_col");
+                                                }
                                                 $result = $cl->db->get_where($attributes["table"],["_trash"=>0])->result();
                                                 // $value_array = (array)json_decode($edit[$fm_control]);
-                                                $value_array = explode(",",$edit[$fm_control]);
+                                                $value_array = explode(",",isset($edit[$fm_control])?$edit[$fm_control]:"");
                                                 foreach($result as $row){
                                                     $selected="";
                                                     if(isset($edit[$fm_control]) && ($edit[$fm_control]==$row->{$value_key} || (is_array($value_array) && in_array($row->{$value_key}, $value_array ) ) ) ){
                                                         $selected="selected";
                                                     }
-                                                    echo "<option value='".($row->{$value_key})."' $selected>$row->name</option>";
+                                                    echo "<option value='".($row->{$value_key})."' $selected >". $row->{$table_val} ."</option>";
                                                 }
                                             }elseif(isset($attributes["values"])){
                                                 foreach($attributes["values"] as $key => $option){
@@ -176,6 +187,23 @@ if(!function_exists("to_html_attr")){
                 return ["pattern"=>trim($case[1],'/')];
             break;
             }
+            case "greater_than":{
+                return ["min"=>trim($case[1],'/]')];
+            break;
+            }
+            case "less_than":{
+               
+                return ["max"=>trim($case[1],'/]')];
+            break;
+            }
+            case "in_list":{
+                $list = explode(",",trim($case[1],'/]'));
+                $values = array_map(function($val){
+                    return strtoupper($val);
+                },$list);
+                return ["values"=>array_combine($list,$values)];
+            break;
+            }
             default:{
                 return [];
             break;
@@ -194,7 +222,6 @@ if(!function_exists("to_html_attr")){
  */
 if(!function_exists("prime_mover_new")){
     function prime_mover_new($edit = 0,array $table_config=[]){
-        
         $url_prefix = "";
         $ci =& get_instance();
         $table = isset($table_config["config"])?$table_config["config"]:$ci->config->item("form_structure")[$ci->router->class];
@@ -208,8 +235,10 @@ if(!function_exists("prime_mover_new")){
 			}else{
 				show_404();
 			}
-		}
+        }
+        
 		if($ci->input->method()=="post"){
+
             if(isset($table["form_filter_hooks"]["before_validation"])){
                 call_user_func($table["form_filter_hooks"]["before_validation"]);
             }
@@ -280,6 +309,7 @@ if(!function_exists("prime_mover_new")){
                 $_POST = isset($table["form_filter_hooks"]["before_save"])?call_user_func($table["form_filter_hooks"]["before_save"],$_POST):$_POST;
 				if($ci->input->post("id")){
 					if($ci->Db_model->update($table_name,$ci->input->post())){
+                        isset($table["form_filter_hooks"]["after_save"])?call_user_func($table["form_filter_hooks"]["after_save"],$ci->input->post()):"";
                         call_user_func($after_submit_function_name,$table_name." has been update","success",base_url($base.$url_prefix).$table_name."/edit/".$ci->input->post("id"),$ci->input->post("id"));
                         
 					}else{
@@ -287,10 +317,11 @@ if(!function_exists("prime_mover_new")){
 					}
 				}else{
                     if($id = $ci->Db_model->save($table_name,$ci->input->post())){
+                        isset($table["form_filter_hooks"]["after_save"])?call_user_func($table["form_filter_hooks"]["after_save"],$ci->input->post()):"";
                         call_user_func($after_submit_function_name,$table_name." has been saved","success",$base.$url_prefix.$table_name."/".$ci->router->method,$id);
                         
 					}else{
-						call_user_func($after_submit_function_name,"System Error,<br>Could not save","danger",$base.$url_prefix.$table_name."/".$ci->router->method."?". http_build_query($_POST) );
+						call_user_func($after_submit_function_name,"System Error,<br>Could not save".$ci->db->last_query(),"danger",$base.$url_prefix.$table_name."/".$ci->router->method."?". http_build_query($_POST) );
 					}
 				}
 			}else{
@@ -317,7 +348,9 @@ if(!function_exists("prime_mover_list")){
  */   function prime_mover_list($table_config=[],$options=[]){
         $ci =& get_instance();
 
-        $table = count($table_config)<=0?$ci->config->item("form_structure")[$ci->router->class]:$table_config;
+        $fm_config = $ci->config->item("form_structure");
+        $form_structure = isset($fm_config[$ci->router->class])?$fm_config:[];
+        $table = count($table_config)<=0?$form_structure:$table_config;
         $base= ($base = $ci->config->item("prime_mover_base") )?$base."/":"";
 
     
