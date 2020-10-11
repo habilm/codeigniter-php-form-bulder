@@ -35,7 +35,7 @@ if(!function_exists("form_builder")){
                         $fm_control = str_replace(" ","",$key);
                         $attributes["placeholder"] = $attributes["label"] = ucfirst(str_replace("_"," ",$key));
                         $attributes = array_merge($attributes,$col);
-                        $attributes["value"] = (!empty($edit[$fm_control]))?$edit[$fm_control]:(  isset($col["value"])?$col["value"]:"");
+                        $attributes["value"] = (!empty($edit[$fm_control]) || ( isset($edit[$fm_control]) && is_numeric($edit[$fm_control]) ) )?$edit[$fm_control]:(  isset($col["value"])?$col["value"]:"");
                         if(isset($col["rules"])){
                             $rules = preg_split('/\|(?![^\[]*\])/', $col["rules"]);
                             foreach($rules as $rule){
@@ -48,17 +48,19 @@ if(!function_exists("form_builder")){
                         }
                         $attributes["placeholder"] = str_replace("_"," ",$attributes["placeholder"]);
                     }else{
-                        $attributes["value"] = (!empty($edit[$col]))?$edit[$col]:(  isset($col["value"])?$col["value"]:"");
+                        $attributes["value"] = (!empty($edit[$col]) || ( isset($edit[$col]) && is_numeric($edit[$col]) ))?$edit[$col]:(  isset($col["value"])?$col["value"]:"");
                         $fm_control = str_replace(" ","",trim($col));
                     }
 
                     //filter_hooks 
-                    if(isset($cl->table["form_filter_hooks"]["before_create_input"]) && in_array($fm_control,$cl->table["form_filter_hooks"]["before_create_input"])){
+                    
+                    if(isset($table_config["form_filter_hooks"]["before_create_input"]) && in_array($fm_control,$table_config["form_filter_hooks"]["before_create_input"])){
                         if(function_exists($hook_function_name = "before_create_input_".$fm_control)){
                             $attributes = call_user_func($hook_function_name,$cl,$attributes);
                         }else{
                             echo '<h4 class="text-danger">function not found</h4>';
                         }
+                        die("o0");
                     }
                     $html_attr = $parent_facts = "";
                     foreach($attributes as $attr_name => $attribute){
@@ -66,8 +68,7 @@ if(!function_exists("form_builder")){
                             $parent_facts.="data-parent-name='{$attribute[0]}' data-parent-value='".(isset($attribute[1])?$attribute[1]:"")."'";
                             $html_attr.="disabled='disabled'";
                         }
-                        
-                        if(!is_array($attribute) && !in_array($attr_name,["label","table","table_column"]) && ( is_numeric($attribute) || !empty(trim($attribute)) ) ){
+                        if(!is_array($attribute) && !in_array($attr_name,["label","table","table_column"]) && ( is_numeric($attribute) || is_numeric($attribute) || !empty(trim($attribute)) ) ){
                             $html_attr.="$attr_name='$attribute' ";
                         }
                     }
@@ -105,11 +106,12 @@ if(!function_exists("form_builder")){
                                                 $table_val = isset($attributes["table_val"])?$attributes["table_val"]:"name";
                                                 if(isset($attributes["table_select"])){
                                                     $select_col = $attributes["table_select"];
-                                                    $cl->db->select("$select_col");
+                                                    $cl->db->select("$select_col"); 
                                                 }
                                                 $result = $cl->db->get_where($attributes["table"],["_trash"=>0])->result();
                                                 // $value_array = (array)json_decode($edit[$fm_control]);
                                                 $value_array = explode(",",isset($edit[$fm_control])?$edit[$fm_control]:"");
+                                                echo isset($attributes["value"]) ?"<option value=''  >--Select $fm_control--</option>":"";
                                                 foreach($result as $row){
                                                     $selected="";
                                                     if(isset($edit[$fm_control]) && ($edit[$fm_control]==$row->{$value_key} || (is_array($value_array) && in_array($row->{$value_key}, $value_array ) ) ) ){
@@ -120,9 +122,8 @@ if(!function_exists("form_builder")){
                                             }elseif(isset($attributes["values"])){
                                                 foreach($attributes["values"] as $key => $option){
                                                     $selected = "";
-                                                    
                                                     $selected_values = explode(",",$edit[$fm_control]) ;
-                                                    if((isset($edit[$fm_control]) && ($edit[$fm_control]==$key || in_array($key, $selected_values) ))|| $attributes["value"] == $key){
+                                                    if((isset($edit[$fm_control]) && ($edit[$fm_control]==$key || in_array($key, $selected_values) )) || ( $attributes["value"] == $key  && !isset($edit[$fm_control]))){
                                                         $selected = "selected";
                                                     }
                                                     echo "<option value='$key' $selected>$option</option>";
@@ -252,7 +253,17 @@ if(!function_exists("prime_mover_new")){
 					if(is_array($element)){
 						$field_name = isset($element["label"])?$element["label"]: $key;
                         $rules = isset($element["rules"])?$element["rules"]:"trim";
+                        if(isset($element["parent"])){
+                            if(!isset($_POST[$element["parent"][0]])){
+                                show_error("Parent element not found");
+                            }
+                            if($_POST[$element["parent"][0]] !=  $element["parent"][1]){
+                                continue;
+                            }
+                            
+                        }
                         $fv->set_rules($key,$field_name,$rules);
+                        
 					}else{
 						$fv->set_rules($element,$element,"trim");
 					}
@@ -321,6 +332,7 @@ if(!function_exists("prime_mover_new")){
 					}
 				}else{
                     if($id = $ci->Db_model->save($table_name,$ci->input->post())){
+                        $_POST["id"] = $id;
                         isset($table["form_filter_hooks"]["after_save"])?call_user_func($table["form_filter_hooks"]["after_save"],$ci->input->post()):"";
                         call_user_func($after_submit_function_name,$table_name." has been saved","success",$base.$url_prefix.$table_name."/".$ci->router->method,$id);
                         
