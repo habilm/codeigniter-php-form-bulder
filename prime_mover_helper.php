@@ -467,3 +467,8 @@ if(!function_exists("alert")){
        }
     }
 }
+function debug($data){
+echo "<pre>";
+print_r($data);
+echo "</pre>";
+}
