@@ -13,10 +13,10 @@ function options_view($options_table){
                 </li>
             <?php
         }
-        echo '</ul><div class="tab-content">';
+        echo '</ul><div class="tab-content ">';
         $active="active";
         foreach($options_table_sorted as $key => $nav){
-            echo '<div class="options-form-controls tab-pane fade show bg-white p-4 '.$active.'" id="options-'.$key.'" role="tabpanel" aria-labelledby="tab-'.$key.'">';
+            echo '<div class="options-form-controls tab-pane fade show active bg-white'.$active.'" id="options-'.$key.'" role="tabpanel" aria-labelledby="tab-'.$key.'">';
             $active="";
             foreach($nav as $app_option){
                 $opt_form=[];
@@ -85,6 +85,10 @@ function get_options($key,$full_data=false) {
         }
     }else{
         $ci->db->where(["name"=>$key]);
+        if(isset($ci->session->userdata("app_options")[$key])){
+            $ci->db->reset_query();
+            return $full_data?[$key=>$ci->session->userdata("app_options")[$key]]:$ci->session->userdata("app_options")[$key]->value;
+        }
     }
     $option = $ci->db->get_where("options");
     if($option->num_rows()<=0){

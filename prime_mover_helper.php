@@ -102,15 +102,18 @@ if(!function_exists("form_builder")){
                                             if(isset($attributes["table"])){
                                                 $value_key = isset($attributes["key"])?$attributes["key"]:"id";
 
-                                                $select_select = "name,id";
                                                 $table_val = isset($attributes["table_val"])?$attributes["table_val"]:"name";
-                                                if(isset($attributes["table_select"])){
-                                                    $select_col = $attributes["table_select"];
-                                                    $cl->db->select("$select_col"); 
+                                               
+                                                if(isset($attributes["table_query"]) && is_array($attributes["table_query"])){
+                                                    foreach($attributes["table_query"] as $method=>$query){
+                                                        $cl->db->{$method}($query);
+                                                    }
                                                 }
+
                                                 $result = $cl->db->get_where($attributes["table"],["_trash"=>0])->result();
                                                 // $value_array = (array)json_decode($edit[$fm_control]);
-                                                $value_array = explode(",",isset($edit[$fm_control])?$edit[$fm_control]:"");
+                                                $value_array = isset($edit[$fm_control])?explode(",",$edit[$fm_control]):[] ;
+
                                                 echo isset($attributes["value"]) ?"<option value=''  >--Select $fm_control--</option>":"";
                                                 foreach($result as $row){
                                                     $selected="";
@@ -119,10 +122,10 @@ if(!function_exists("form_builder")){
                                                     }
                                                     echo "<option value='".($row->{$value_key})."' $selected >". $row->{$table_val} ."</option>";
                                                 }
-                                            }elseif(isset($attributes["values"])){
+                                            }elseif(isset($attributes["values"])){ 
                                                 foreach($attributes["values"] as $key => $option){
                                                     $selected = "";
-                                                    $selected_values = explode(",",$edit[$fm_control]) ;
+                                                    $selected_values = isset($edit[$fm_control])?explode(",",$edit[$fm_control]):[] ;
                                                     if((isset($edit[$fm_control]) && ($edit[$fm_control]==$key || in_array($key, $selected_values) )) || ( $attributes["value"] == $key  && !isset($edit[$fm_control]))){
                                                         $selected = "selected";
                                                     }
@@ -255,7 +258,7 @@ if(!function_exists("prime_mover_new")){
                         $rules = isset($element["rules"])?$element["rules"]:"trim";
                         if(isset($element["parent"])){
                             if(!isset($_POST[$element["parent"][0]])){
-                                show_error("Parent element not found");
+                                show_error("Parent element not found for <i>$key</i>");
                             }
                             if($_POST[$element["parent"][0]] !=  $element["parent"][1]){
                                 continue;
@@ -467,8 +470,17 @@ if(!function_exists("alert")){
        }
     }
 }
-function debug($data){
-echo "<pre>";
-print_r($data);
-echo "</pre>";
+function debug($data,$die= true){
+    echo "<pre>";
+    print_r($data);
+    echo "</pre>";
+    $die and die();
+}
+function print_json(array $data, object $that=null){
+    if($that===null){
+        $that =& get_instance();
+    }
+
+    $that->output->set_content_type('application/json')->set_status_header(200)->set_output(json_encode($data))->_display();
+    die;
 }
