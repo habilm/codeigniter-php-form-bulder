@@ -368,7 +368,7 @@ if(!function_exists("prime_mover_list")){
         $ci =& get_instance();
 
         $fm_config = $ci->config->item("form_structure");
-        $form_structure = isset($fm_config[$ci->router->class])?$fm_config:[];
+        $form_structure = isset($fm_config[$ci->router->class])?$fm_config[$ci->router->class]:[];
         $table = count($table_config)<=0?$form_structure:$table_config;
         $base= ($base = $ci->config->item("prime_mover_base") )?$base."/":"";
 
@@ -376,6 +376,22 @@ if(!function_exists("prime_mover_list")){
         $fields = $ci->db->list_fields($ci->router->class);
 		if(isset($table["list"]["exclude"]) && is_array($table["list"]["exclude"])){
 			$fields = array_diff($fields,$table["list"]["exclude"]);
+        }
+        if(isset($table["list"]["join_column"])){
+            if(is_array($table["list"]["join_column"]["select"])){
+                foreach($table["list"]["join_column"]["select"] as $new_col){
+                    preg_match('/(\w+)$/',$new_col,$mathch);
+                    $fields[] = $mathch[0];
+                }
+            }else{
+                preg_match('/(\w+)$/',$table["list"]["join_column"]["select"],$mathch);
+                $fields[] = $mathch;
+            }
+        }
+        if(isset($table["list"]["index"])){
+            foreach($table["list"]["index"] as $key => $val){
+                // here
+            }
         }
         if(isset($options["class"])){
             $data["class_name"] = $options["class"];
@@ -433,6 +449,37 @@ function get_the_table($fields,$options=[]){
                         
                     ?>
                     </tbody>
+                    <tfoot>
+                    <tr>
+                            <?php
+                                foreach($fields as $field){
+                                    
+                                    $jump = true;
+                                    $exclude = [];
+                                    $realName = $field;
+                                    if(isset($table_data) && isset($table_data["list"]["exclude"])){
+                                        $jump = false;
+                                        $exclude=$table_data["list"]["exclude"];
+                                        if(isset($table_data["list"]["rename"])){
+                                            if(array_key_exists($field,$table_data["list"]["rename"])){
+                                                $field = $table_data["list"]["rename"][$field];
+                                            }
+                                        }
+                                    }
+                                    if( $ci->session->userdata("user")["id"]==1 || ( in_array($realName,["mobile","firebaseid","advertisingid"]) && in_array("show_contact_data",$ci->permissions["users"])  ) || !in_array($realName,["mobile","firebaseid","advertisingid"]) ){
+                                        if(!in_array($field,$exclude) || $jump){
+                                            echo "
+                                            <th>".( ucfirst(str_replace("_"," ",$field)) )."
+                                            </th>";
+                                        }
+                                    }
+                                    
+                                }
+                            ?>
+                            <th>Actions
+                            </th>
+                        </tr>
+                    </tfoot>
                 </table>
             </div>
         </div>
