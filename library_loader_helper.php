@@ -2,7 +2,7 @@
 $load=[];
 $GLOBALS["html_library"] =[
     "data_table" => [
-        ["dataTables.bootstrap4.min.css"],["jquery.dataTables.js","dataTables.bootstrap4.min.js"]
+        ["dataTables.bootstrap4.min.css"],["jquery.dataTables.js","dataTables.bootstrap4.min.js"/* ,"dataTables.fixedColumns.min.js" */]
     ],
     "chart_js"=>
     [

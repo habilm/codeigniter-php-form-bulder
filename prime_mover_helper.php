@@ -400,6 +400,7 @@ if(!function_exists("prime_mover_list")){
             $data["main"] = $options["method"];
         }
         $data["body"]["fields"] = $fields;
+        $data["body"] = isset($options["body"])?array_merge($data["body"],$options["body"]):$data["body"];
         $data["body_only"] = isset($options["body_only"]) && $options["body_only"] ? true: false;
         $base= ($base = $ci->config->item("prime_mover_base") )?$base."/":"";
 		$ci->load->view($base.'main', ( isset($data)?$data:"" ) );
@@ -412,7 +413,7 @@ function get_the_table($fields,$options=[]){
 ?>
 <div class="row">
             <div class="col-sm-12">
-                <table id="dataTable" data-url="<?= base_url() ?>" class="table table-hover table-striped">
+                <table id="dataTable" data-url="<?= base_url() ?>" class="table table-hover table-striped ">
                     <thead>
                         <tr>
                             <?php
