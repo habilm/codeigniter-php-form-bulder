@@ -325,8 +325,9 @@ if(!function_exists("prime_mover_new")){
 
                 }
                 $_POST = isset($table["form_filter_hooks"]["before_save"])?call_user_func($table["form_filter_hooks"]["before_save"],$_POST):$_POST;
-				if($ci->input->post("id")){
-					if($ci->Db_model->update($table_name,$ci->input->post())){
+                $xss = isset($table["xss"])?$table["xss"]:true;
+                if($ci->input->post("id")){
+					if($ci->Db_model->update($table_name,$ci->input->post(null,$xss))){
                         isset($table["form_filter_hooks"]["after_save"])?call_user_func($table["form_filter_hooks"]["after_save"],$ci->input->post()):"";
                         call_user_func($after_submit_function_name,$table_name." has been update","success",base_url($base.$url_prefix).$table_name."/edit/".$ci->input->post("id"),$ci->input->post("id"));
                         
@@ -334,7 +335,7 @@ if(!function_exists("prime_mover_new")){
 						call_user_func($after_submit_function_name,"System Error,<br>Could not update","danger",base_url($base.$url_prefix).$table_name."/".$ci->router->method);
 					}
 				}else{
-                    if($id = $ci->Db_model->save($table_name,$ci->input->post())){
+                    if($id = $ci->Db_model->save($table_name,$ci->input->post(null,$xss))){
                         $_POST["id"] = $id;
                         isset($table["form_filter_hooks"]["after_save"])?call_user_func($table["form_filter_hooks"]["after_save"],$ci->input->post()):"";
                         call_user_func($after_submit_function_name,$table_name." has been saved","success",$base.$url_prefix.$table_name."/".$ci->router->method,$id);
