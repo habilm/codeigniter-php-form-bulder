@@ -16,11 +16,10 @@ function options_view($options_table){
         echo '</ul><div class="tab-content ">';
         $active="active";
         foreach($options_table_sorted as $key => $nav){
-            echo '<div class="options-form-controls tab-pane fade show active bg-white'.$active.'" id="options-'.$key.'" role="tabpanel" aria-labelledby="tab-'.$key.'">';
+            echo '<div class="options-form-controls tab-pane fade show bg-white '.$active.'" id="options-'.$key.'" role="tabpanel" aria-labelledby="tab-'.$key.'">';
             $active="";
             foreach($nav as $app_option){
                 $opt_form=[];
-                
                 if(empty(trim($app_option->form))){
                     $opt_form[]=[$app_option->name=>["data-id"=>$app_option->id,"value"=>$app_option->value]];
                 }else{

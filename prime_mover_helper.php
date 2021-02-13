@@ -77,11 +77,28 @@ if(!function_exists("form_builder")){
                         ?>
                             <input type="hidden" <?= $html_attr ?> name="<?=$fm_control ?>" >
                         <?php
-                    }elseif($attributes["type"]=="checkbox"){
+                    }elseif(in_array($attributes["type"],["checkbox","radio"])){
                         ?>
                             <div <?= $parent_facts ?> class="col-sm-<?=isset($attributes["colspan"])?$attributes["colspan"]:( floor( 12/count($frow)) ) ?>">
                                 <div class="form-group">
-                                    <label> <input type="<?=$attributes["type"] ?>" <?= $html_attr ?> <?php if(function_exists($attributes["pattern"])){ echo call_user_func($attributes["pattern"]);} ?> value="<?= isset($edit[$fm_control])?$edit[$fm_control]:"" ?>" name="<?=$fm_control ?>" > <?=ucfirst($attributes["label"])?></label>
+                                <label><?=ucfirst($attributes["label"])?></label><br>
+                                    <?php 
+                                    $checkbox_name = $fm_control."[]";
+                                    $checkbox_values = isset($edit[$fm_control])?explode(",",$edit[$fm_control]):[];
+                                    $checkbox_values = empty($checkbox_values) && isset($attributes["value"])?[$attributes["value"]]:$checkbox_values;
+
+                                    if(!is_array($attributes["values"])){
+                                        $attributes["values"] = [1=>$attributes["values"]];
+                                        $checkbox_name = $fm_control;
+                                    } 
+                                    if($attributes["type"] == "radio"){
+                                        $checkbox_name = $fm_control;
+                                    } 
+                                    foreach($attributes["values"] as $key => $label){ 
+                                        ?>
+                                        <label style='display:inline-block;width:auto' <?= $html_attr ?> > <input type="<?=$attributes["type"] ?>" <?= in_array($key,$checkbox_values)?"checked":"" ?>  value="<?= $key?>" name="<?= $checkbox_name ?>" > <?=ucfirst($label)?></label>
+                                    <?php } 
+                                    ?>
                                 </div>
                             </div>
                         <?php
@@ -523,6 +540,8 @@ function debug($data,$die= true){
     echo "<pre>";
     print_r($data);
     echo "</pre>";
+    $debug = debug_backtrace();
+    echo "<b>{$debug[0]['file']} {$debug[0]['line']}</b>";
     $die and die();
 }
 function print_json(array $data, object $that=null){
