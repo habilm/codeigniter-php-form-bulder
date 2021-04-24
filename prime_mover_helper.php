@@ -391,25 +391,12 @@ if(!function_exists("prime_mover_list")){
         $base= ($base = $ci->config->item("prime_mover_base") )?$base."/":"";
 
     
-        $fields = $ci->db->list_fields($ci->router->class);
-		if(isset($table["list"]["exclude"]) && is_array($table["list"]["exclude"])){
-			$fields = array_diff($fields,$table["list"]["exclude"]);
-        }
-        if(isset($table["list"]["join_column"])){
-            if(is_array($table["list"]["join_column"]["select"])){
-                foreach($table["list"]["join_column"]["select"] as $new_col){
-                    preg_match('/(\w+)$/',$new_col,$mathch);
-                    $fields[] = $mathch[0];
-                }
-            }else{
-                preg_match('/(\w+)$/',$table["list"]["join_column"]["select"],$mathch);
-                $fields[] = $mathch;
-            }
-        }
+        
         if(isset($table["list"]["index"])){
             foreach($table["list"]["index"] as $key => $val){
-                // here
-            }
+                // debug(array_splice($fields,2,4));
+
+            }   
         }
         if(isset($options["class"])){
             $data["class_name"] = $options["class"];
@@ -417,22 +404,43 @@ if(!function_exists("prime_mover_list")){
         if(isset($options["method"])){
             $data["main"] = $options["method"];
         }
-        $data["body"]["fields"] = $fields;
-        $data["body"] = isset($options["body"])?array_merge($data["body"],$options["body"]):$data["body"];
+        // debug($fields);
+        $data["body"] =isset($options["body"])?$options["body"]:[];
         $data["body_only"] = isset($options["body_only"]) && $options["body_only"] ? true: false;
         $base= ($base = $ci->config->item("prime_mover_base") )?$base."/":"";
 		$ci->load->view($base.'main', ( isset($data)?$data:"" ) );
     }
 }
 
-function get_the_table($fields,$options=[]){
+function get_the_table($class_name=null,$options=[]){
     $ci = & get_instance();
-    $table_data = isset($options["table"]) ? $options["table"] : $ci->config->item("form_structure")[$ci->router->class];
+    $class_name = empty($class_name)?$ci->router->class:$class_name;
+    $table_data = isset($options["table"]) ? $options["table"] : $ci->config->item("form_structure")[$class_name];
+    $url = isset($table_data["list"]["data-url"])?$table_data["list"]["data-url"]: base_url('tables/get_table_data/'.$class_name);
+    $url = isset($options["data-url"])?$options["data-url"]:$url;
+
+    $fields = isset($table_data["list"]["fields"])?$table_data["list"]["fields"]: $ci->db->list_fields($class_name);
+    
+    if(isset($table_data["list"]["exclude"]) && is_array($table_data["list"]["exclude"])){
+        $fields = array_diff($fields,$table_data["list"]["exclude"]);
+    }
+    if(isset($table_data["list"]["join_column"])){
+        if(is_array($table_data["list"]["join_column"]["select"])){
+            foreach($table_data["list"]["join_column"]["select"] as $new_col){
+                preg_match('/(\w+)$/',$new_col,$mathch);
+                $fields[] = $mathch[0];
+            }
+        }else{
+            preg_match('/(\w+)$/',$table_data["list"]["join_column"]["select"],$mathch);
+            $fields[] = $mathch;
+        }
+    }
 ?>
 <div class="row">
-            <div class="col-sm-12">
-                <table id="dataTable" data-url="<?= base_url() ?>" class="table table-hover table-striped ">
+            <div class="col-sm-12">   
+                <table id="dataTable" data-url="<?= $url ?>" class=" data-table table table-hover table-striped ">
                     <thead>
+                    <?php ob_start() ?>
                         <tr>
                             <?php
                                 foreach($fields as $field){
@@ -440,28 +448,33 @@ function get_the_table($fields,$options=[]){
                                     $jump = true;
                                     $exclude = [];
                                     $realName = $field;
-                                    if(isset($table_data) && isset($table_data["list"]["exclude"])){
+                                    $exclude = isset($table_data["list"]["exclude"]) ? $table_data["list"]["exclude"]:[];
+                                    if(isset($table_data)){
                                         $jump = false;
-                                        $exclude=$table_data["list"]["exclude"];
                                         if(isset($table_data["list"]["rename"])){
                                             if(array_key_exists($field,$table_data["list"]["rename"])){
                                                 $field = $table_data["list"]["rename"][$field];
                                             }
                                         }
                                     }
-                                    if( $ci->session->userdata("user")["id"]==1 || ( in_array($realName,["mobile","firebaseid","advertisingid"]) && in_array("show_contact_data",$ci->permissions["users"])  ) || !in_array($realName,["mobile","firebaseid","advertisingid"]) ){
-                                        if(!in_array($field,$exclude) || $jump){
-                                            echo "
-                                            <th>".( ucfirst(str_replace("_"," ",$field)) )."
-                                            </th>";
-                                        }
+                                  
+                                    if(!in_array($field,$exclude) || $jump){
+                                        echo "
+                                        <th>".( ucfirst(str_replace("_"," ",$field)) )."
+                                        </th>";
                                     }
+                                    
                                     
                                 }
                             ?>
+                            <?php 
+                            if(!in_array("actions",$table_data["list"]["exclude"])): ?>
+
                             <th>Actions
                             </th>
+                            <?php endif; ?>
                         </tr>
+                        <?php $head_tr = ob_get_contents(); ?> 
                     </thead>
                     <tbody>
                     <?php
@@ -469,35 +482,7 @@ function get_the_table($fields,$options=[]){
                     ?>
                     </tbody>
                     <tfoot>
-                    <tr>
-                            <?php
-                                foreach($fields as $field){
-                                    
-                                    $jump = true;
-                                    $exclude = [];
-                                    $realName = $field;
-                                    if(isset($table_data) && isset($table_data["list"]["exclude"])){
-                                        $jump = false;
-                                        $exclude=$table_data["list"]["exclude"];
-                                        if(isset($table_data["list"]["rename"])){
-                                            if(array_key_exists($field,$table_data["list"]["rename"])){
-                                                $field = $table_data["list"]["rename"][$field];
-                                            }
-                                        }
-                                    }
-                                    if( $ci->session->userdata("user")["id"]==1 || ( in_array($realName,["mobile","firebaseid","advertisingid"]) && in_array("show_contact_data",$ci->permissions["users"])  ) || !in_array($realName,["mobile","firebaseid","advertisingid"]) ){
-                                        if(!in_array($field,$exclude) || $jump){
-                                            echo "
-                                            <th>".( ucfirst(str_replace("_"," ",$field)) )."
-                                            </th>";
-                                        }
-                                    }
-                                    
-                                }
-                            ?>
-                            <th>Actions
-                            </th>
-                        </tr>
+                    <?= $head_tr ?>
                     </tfoot>
                 </table>
             </div>
